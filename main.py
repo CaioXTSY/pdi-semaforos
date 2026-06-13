@@ -5,6 +5,7 @@ from pathlib import Path
 
 import cv2
 
+from deteccao import classificar_estado
 from processamento import (
     converter_hsv,
     criar_mascaras,
@@ -14,14 +15,32 @@ from processamento import (
     selecionar_roi,
 )
 
+CORES_ESTADO = {
+    "VERMELHO": (0, 0, 255),
+    "AMARELO": (0, 255, 255),
+    "VERDE": (0, 255, 0),
+    "DESCONHECIDO": (255, 255, 255),
+}
 
-def mostrar(frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi):
+
+def mostrar(
+    frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi, resultado
+):
     x, y, largura, altura = roi
     original = frame.copy()
     cv2.rectangle(original, (x, y), (x + largura, y + altura), (255, 255, 255), 2)
+    texto = f"Estado: {resultado['estado']} ({resultado['confianca']:.0%})"
+    cor = CORES_ESTADO[resultado["estado"]]
+    cv2.putText(original, texto, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, cor, 2)
+
+    detectada = imagem_processada.copy()
+    if resultado["regiao"]:
+        rx, ry, rw, rh = resultado["regiao"]
+        cv2.rectangle(detectada, (rx, ry), (rx + rw, ry + rh), cor, 2)
+
     cv2.imshow("Quadro original", original)
     cv2.imshow("Regiao original", recorte)
-    cv2.imshow("Regiao pre-processada", imagem_processada)
+    cv2.imshow("Deteccao", detectada)
     for cor in mascaras:
         cv2.imshow(f"Mascara {cor}", mascaras[cor])
         cv2.imshow(f"Mascara {cor} limpa", mascaras_limpas[cor])
@@ -41,7 +60,17 @@ def processar_imagem(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
     recorte, roi = selecionar_roi(frame, coordenadas)
     imagem_processada = preprocessar(recorte, filtro)
     mascaras, mascaras_limpas = segmentar(imagem_processada, kernel, iteracoes)
-    mostrar(frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi)
+    resultado = classificar_estado(mascaras_limpas)
+    mostrar(
+        frame,
+        recorte,
+        imagem_processada,
+        mascaras,
+        mascaras_limpas,
+        roi,
+        resultado,
+    )
+    print(f"Estado do semáforo: {resultado['estado']}")
     cv2.waitKey(0)
     return True
 
@@ -63,8 +92,15 @@ def processar_video(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
         mascaras, mascaras_limpas = segmentar(
             imagem_processada, kernel, iteracoes
         )
+        resultado = classificar_estado(mascaras_limpas)
         mostrar(
-            frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi
+            frame,
+            recorte,
+            imagem_processada,
+            mascaras,
+            mascaras_limpas,
+            roi,
+            resultado,
         )
 
         if cv2.waitKey(25) & 0xFF in (ord("q"), 27):
@@ -74,7 +110,7 @@ def processar_video(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Segmenta as cores de um semáforo.")
+    parser = argparse.ArgumentParser(description="Detecta o estado de um semáforo.")
     parser.add_argument("entrada", type=Path)
     parser.add_argument("--roi", nargs=4, type=int, metavar=("X", "Y", "L", "A"))
     parser.add_argument(
