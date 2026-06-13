@@ -27,7 +27,7 @@ def calcular_circularidade(contorno):
     return 4 * math.pi * area / perimetro**2 if perimetro else 0
 
 
-def filtrar_candidatos(contornos, area_minima=100, circularidade_minima=0.6):
+def filtrar_candidatos(contornos, area_minima, circularidade_minima=0.45):
     """Mantém regiões grandes o suficiente e aproximadamente circulares."""
     return [
         contorno
@@ -38,12 +38,14 @@ def filtrar_candidatos(contornos, area_minima=100, circularidade_minima=0.6):
 
 
 def classificar_estado(
-    mascaras, area_minima=100, circularidade_minima=0.6
+    mascaras, proporcao_minima=0.002, circularidade_minima=0.45
 ):
-    """Escolhe a cor válida com maior quantidade de pixels ativos."""
+    """Escolhe a cor com melhor proporção de pixels no terço esperado."""
     deteccoes = []
 
     for cor, mascara in mascaras.items():
+        area_regiao = mascara.size / 3
+        area_minima = max(8, area_regiao * 0.0005)
         candidatos = filtrar_candidatos(
             encontrar_contornos(mascara), area_minima, circularidade_minima
         )
@@ -53,12 +55,15 @@ def classificar_estado(
         melhor = max(candidatos, key=cv2.contourArea)
         mascara_valida = np.zeros_like(mascara)
         cv2.drawContours(mascara_valida, candidatos, -1, 255, cv2.FILLED)
+        pixels = cv2.countNonZero(cv2.bitwise_and(mascara, mascara_valida))
+        proporcao = pixels / area_regiao
+        if proporcao < proporcao_minima:
+            continue
+
         deteccoes.append(
             {
                 "cor": cor,
-                "pixels": cv2.countNonZero(
-                    cv2.bitwise_and(mascara, mascara_valida)
-                ),
+                "proporcao": proporcao,
                 "circularidade": calcular_circularidade(melhor),
                 "regiao": cv2.boundingRect(melhor),
             }
@@ -67,9 +72,9 @@ def classificar_estado(
     if not deteccoes:
         return {"estado": "DESCONHECIDO", "confianca": 0.0, "regiao": None}
 
-    melhor = max(deteccoes, key=lambda item: item["pixels"])
-    total_pixels = sum(item["pixels"] for item in deteccoes)
-    dominancia = melhor["pixels"] / total_pixels
+    melhor = max(deteccoes, key=lambda item: item["proporcao"])
+    total = sum(item["proporcao"] for item in deteccoes)
+    dominancia = melhor["proporcao"] / total
     confianca = (dominancia + melhor["circularidade"]) / 2
 
     return {

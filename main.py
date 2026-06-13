@@ -1,4 +1,4 @@
-"""Entrada, pré-processamento e segmentação das cores do semáforo."""
+"""Entrada, processamento e detecção do estado do semáforo."""
 
 import argparse
 from pathlib import Path
@@ -8,6 +8,7 @@ import numpy as np
 
 from deteccao import classificar_estado
 from processamento import (
+    aplicar_regioes_esperadas,
     converter_hsv,
     criar_mascaras,
     limpar_mascaras,
@@ -57,6 +58,9 @@ def mostrar(
     cv2.putText(original, texto, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, cor, 2)
 
     detectada = imagem_processada.copy()
+    altura_processada = detectada.shape[0]
+    for y in (altura_processada // 3, 2 * altura_processada // 3):
+        cv2.line(detectada, (0, y), (detectada.shape[1], y), (180, 180, 180), 1)
     if resultado["regiao"]:
         rx, ry, rw, rh = resultado["regiao"]
         cv2.rectangle(detectada, (rx, ry), (rx + rw, ry + rh), cor, 2)
@@ -81,17 +85,20 @@ def mostrar(
 
 def segmentar(imagem, kernel, iteracoes):
     mascaras = criar_mascaras(converter_hsv(imagem))
+    mascaras = aplicar_regioes_esperadas(mascaras)
     return mascaras, limpar_mascaras(mascaras, kernel, iteracoes)
 
 
-def processar_imagem(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
+def processar_imagem(
+    caminho, coordenadas, filtro, kernel=3, iteracoes=1, ampliacao=4
+):
     frame = cv2.imread(str(caminho))
     if frame is None:
         return False
 
     frame = redimensionar(frame)
     recorte, roi = selecionar_roi(frame, coordenadas)
-    imagem_processada = preprocessar(recorte, filtro)
+    imagem_processada = preprocessar(recorte, filtro, ampliacao)
     mascaras, mascaras_limpas = segmentar(imagem_processada, kernel, iteracoes)
     resultado = classificar_estado(mascaras_limpas)
     mostrar(
@@ -108,7 +115,9 @@ def processar_imagem(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
     return True
 
 
-def processar_video(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
+def processar_video(
+    caminho, coordenadas, filtro, kernel=3, iteracoes=1, ampliacao=4
+):
     video = cv2.VideoCapture(str(caminho))
     if not video.isOpened():
         raise ValueError("Não foi possível abrir a entrada.")
@@ -121,7 +130,7 @@ def processar_video(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
 
         frame = redimensionar(frame)
         recorte, roi = selecionar_roi(frame, roi)
-        imagem_processada = preprocessar(recorte, filtro)
+        imagem_processada = preprocessar(recorte, filtro, ampliacao)
         mascaras, mascaras_limpas = segmentar(
             imagem_processada, kernel, iteracoes
         )
@@ -155,14 +164,20 @@ def main():
     parser.add_argument(
         "--kernel",
         type=int,
-        default=5,
-        help="Tamanho do kernel morfológico (padrão: 5).",
+        default=3,
+        help="Tamanho do kernel morfológico (padrão: 3).",
     )
     parser.add_argument(
         "--iteracoes",
         type=int,
         default=1,
         help="Iterações das operações morfológicas (padrão: 1).",
+    )
+    parser.add_argument(
+        "--ampliacao",
+        type=float,
+        default=4,
+        help="Ampliação da ROI para semáforos distantes (padrão: 4).",
     )
     args = parser.parse_args()
 
@@ -171,10 +186,20 @@ def main():
 
     try:
         if not processar_imagem(
-            args.entrada, args.roi, args.filtro, args.kernel, args.iteracoes
+            args.entrada,
+            args.roi,
+            args.filtro,
+            args.kernel,
+            args.iteracoes,
+            args.ampliacao,
         ):
             processar_video(
-                args.entrada, args.roi, args.filtro, args.kernel, args.iteracoes
+                args.entrada,
+                args.roi,
+                args.filtro,
+                args.kernel,
+                args.iteracoes,
+                args.ampliacao,
             )
     except ValueError as erro:
         parser.error(str(erro))

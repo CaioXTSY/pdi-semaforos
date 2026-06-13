@@ -3,16 +3,14 @@
 import cv2
 import numpy as np
 
-TAMANHO_PADRAO = (200, 400)
-
 # Limites HSV do OpenCV: H entre 0-179; S e V entre 0-255.
 LIMITES_HSV = {
     "vermelho": [
-        ((0, 100, 70), (10, 255, 255)),
-        ((170, 100, 70), (179, 255, 255)),
+        ((0, 80, 60), (12, 255, 255)),
+        ((168, 80, 60), (179, 255, 255)),
     ],
-    "amarelo": [((15, 100, 70), (35, 255, 255))],
-    "verde": [((40, 70, 70), (90, 255, 255))],
+    "amarelo": [((15, 80, 70), (38, 255, 255))],
+    "verde": [((38, 60, 50), (90, 255, 255))],
 }
 
 
@@ -48,14 +46,31 @@ def filtro_mediana(imagem):
     return cv2.medianBlur(imagem, 5)
 
 
-def preprocessar(imagem, filtro="mediana"):
-    """Padroniza o tamanho e aplica o filtro escolhido."""
-    imagem = cv2.resize(imagem, TAMANHO_PADRAO, interpolation=cv2.INTER_AREA)
+def melhorar_brilho(imagem):
+    """Melhora o contraste local do canal de brilho usando CLAHE."""
+    hsv = cv2.cvtColor(imagem, cv2.COLOR_BGR2HSV)
+    hsv[:, :, 2] = cv2.createCLAHE(2.0, (8, 8)).apply(hsv[:, :, 2])
+    return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+
+
+def preprocessar(imagem, filtro="mediana", ampliacao=4):
+    """Amplia a ROI, melhora o brilho e reduz pequenos ruídos."""
+    if ampliacao <= 0:
+        raise ValueError("A ampliação deve ser maior que zero.")
+
+    imagem = cv2.resize(
+        imagem,
+        None,
+        fx=ampliacao,
+        fy=ampliacao,
+        interpolation=cv2.INTER_CUBIC,
+    )
+    imagem = melhorar_brilho(imagem)
 
     if filtro == "gaussiano":
-        return filtro_gaussiano(imagem)
+        return cv2.GaussianBlur(imagem, (3, 3), 0)
     if filtro == "mediana":
-        return filtro_mediana(imagem)
+        return cv2.medianBlur(imagem, 3)
 
     raise ValueError("Filtro deve ser 'gaussiano' ou 'mediana'.")
 
@@ -82,6 +97,25 @@ def criar_mascaras(imagem_hsv, limites=None):
         mascaras[cor] = mascara
 
     return mascaras
+
+
+def aplicar_regioes_esperadas(mascaras):
+    """Mantém cada cor somente no terço vertical esperado do semáforo."""
+    altura = next(iter(mascaras.values())).shape[0]
+    cortes = {
+        "vermelho": (0, altura // 3),
+        "amarelo": (altura // 3, 2 * altura // 3),
+        "verde": (2 * altura // 3, altura),
+    }
+    resultado = {}
+
+    for cor, mascara in mascaras.items():
+        filtrada = np.zeros_like(mascara)
+        inicio, fim = cortes[cor]
+        filtrada[inicio:fim] = mascara[inicio:fim]
+        resultado[cor] = filtrada
+
+    return resultado
 
 
 def criar_kernel(tamanho=5):
@@ -111,17 +145,17 @@ def fechamento(mascara, kernel, iteracoes=1):
     )
 
 
-def limpar_mascara(mascara, tamanho_kernel=5, iteracoes=1):
+def limpar_mascara(mascara, tamanho_kernel=3, iteracoes=1):
     """Remove pontos isolados e preenche pequenas falhas."""
     if iteracoes <= 0:
         raise ValueError("A quantidade de iterações deve ser maior que zero.")
 
     kernel = criar_kernel(tamanho_kernel)
-    mascara = abertura(mascara, kernel, iteracoes)
-    return fechamento(mascara, kernel, iteracoes)
+    mascara = fechamento(mascara, kernel, iteracoes)
+    return abertura(mascara, kernel, iteracoes)
 
 
-def limpar_mascaras(mascaras, tamanho_kernel=5, iteracoes=1):
+def limpar_mascaras(mascaras, tamanho_kernel=3, iteracoes=1):
     """Aplica a limpeza morfológica a todas as máscaras."""
     return {
         cor: limpar_mascara(mascara, tamanho_kernel, iteracoes)
