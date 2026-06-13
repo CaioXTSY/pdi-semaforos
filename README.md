@@ -79,3 +79,11 @@ python main.py "dados\video.mp4"
 
 Ao abrir a imagem, selecione o semáforo com o mouse e pressione `Enter` ou
 `Espaço`. Em vídeos, pressione `Q` ou `Esc` para encerrar.
+
+## Exemplos de resultado
+
+A imagem abaixo apresenta dois exemplos processados pelo sistema: um semáforo
+vermelho próximo e um semáforo verde distante. O painel mostra a região
+selecionada, o estado identificado e as máscaras criadas durante o processo.
+
+![Exemplos de detecção de semáforos](.github/imagens/exemplos_processamento.png)
