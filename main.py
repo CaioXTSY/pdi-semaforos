@@ -58,9 +58,6 @@ def mostrar(
     cv2.putText(original, texto, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.8, cor, 2)
 
     detectada = imagem_processada.copy()
-    altura_processada = detectada.shape[0]
-    for y in (altura_processada // 3, 2 * altura_processada // 3):
-        cv2.line(detectada, (0, y), (detectada.shape[1], y), (180, 180, 180), 1)
     if resultado["regiao"]:
         rx, ry, rw, rh = resultado["regiao"]
         cv2.rectangle(detectada, (rx, ry), (rx + rw, ry + rh), cor, 2)

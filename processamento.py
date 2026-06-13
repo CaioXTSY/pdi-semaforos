@@ -100,18 +100,20 @@ def criar_mascaras(imagem_hsv, limites=None):
 
 
 def aplicar_regioes_esperadas(mascaras):
-    """Mantém cada cor somente no terço vertical esperado do semáforo."""
+    """Mantém cada cor em uma zona vertical esperada com sobreposição."""
     altura = next(iter(mascaras.values())).shape[0]
-    cortes = {
-        "vermelho": (0, altura // 3),
-        "amarelo": (altura // 3, 2 * altura // 3),
-        "verde": (2 * altura // 3, altura),
+    zonas = {
+        "vermelho": (0.00, 0.55),
+        "amarelo": (0.20, 0.80),
+        "verde": (0.45, 1.00),
     }
     resultado = {}
 
     for cor, mascara in mascaras.items():
         filtrada = np.zeros_like(mascara)
-        inicio, fim = cortes[cor]
+        inicio_relativo, fim_relativo = zonas[cor]
+        inicio = int(altura * inicio_relativo)
+        fim = int(altura * fim_relativo)
         filtrada[inicio:fim] = mascara[inicio:fim]
         resultado[cor] = filtrada
 

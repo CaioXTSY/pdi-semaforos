@@ -40,7 +40,7 @@ def filtrar_candidatos(contornos, area_minima, circularidade_minima=0.45):
 def classificar_estado(
     mascaras, proporcao_minima=0.002, circularidade_minima=0.45
 ):
-    """Escolhe a cor com melhor proporção de pixels no terço esperado."""
+    """Escolhe a cor com melhor proporção de pixels na zona esperada."""
     deteccoes = []
 
     for cor, mascara in mascaras.items():
