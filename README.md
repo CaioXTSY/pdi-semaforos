@@ -47,11 +47,13 @@ resultado `DESCONHECIDO`.
 
 ## Organização dos arquivos
 
-- `main.py`: executa e integra todas as etapas.
-- `entrada.py`: abre imagens e vídeos e permite selecionar o semáforo.
-- `processamento.py`: melhora a qualidade da região selecionada.
-- `segmentacao.py`: separa as cores vermelha, amarela e verde.
-- `deteccao.py`: identifica o estado e apresenta o resultado.
+- `main.py`: integra o fluxo e apresenta o painel.
+- `processamento.py`: abre a entrada, trata a ROI e cria as máscaras.
+- `deteccao.py`: localiza candidatos e classifica o estado.
+- `avaliacao.py`: estabiliza vídeos, calcula métricas e salva resultados.
+
+Os resultados de cada execução são salvos em
+`resultados/resultados.csv`. Outro caminho pode ser informado com `--saida`.
 
 ## Instalação
 
@@ -75,6 +77,12 @@ Para processar um vídeo:
 
 ```powershell
 python main.py "dados\video.mp4"
+```
+
+Para escolher o arquivo de resultados:
+
+```powershell
+python main.py "fotos\verde_3.png" --saida "resultados\verde_3.csv"
 ```
 
 Ao abrir a imagem, selecione o semáforo com o mouse e pressione `Enter` ou
