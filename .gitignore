@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Ambientes virtuais
+.venv/
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+
+# Testes e ferramentas
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Resultados gerados
+resultados/*
+!resultados/.gitkeep
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
