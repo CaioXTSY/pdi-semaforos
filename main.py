@@ -8,29 +8,31 @@ import cv2
 from processamento import (
     converter_hsv,
     criar_mascaras,
+    limpar_mascaras,
     preprocessar,
     redimensionar,
     selecionar_roi,
 )
 
 
-def mostrar(frame, recorte, imagem_processada, mascaras, roi):
+def mostrar(frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi):
     x, y, largura, altura = roi
     original = frame.copy()
     cv2.rectangle(original, (x, y), (x + largura, y + altura), (255, 255, 255), 2)
     cv2.imshow("Quadro original", original)
     cv2.imshow("Regiao original", recorte)
     cv2.imshow("Regiao pre-processada", imagem_processada)
-    cv2.imshow("Mascara vermelha", mascaras["vermelho"])
-    cv2.imshow("Mascara amarela", mascaras["amarelo"])
-    cv2.imshow("Mascara verde", mascaras["verde"])
+    for cor in mascaras:
+        cv2.imshow(f"Mascara {cor}", mascaras[cor])
+        cv2.imshow(f"Mascara {cor} limpa", mascaras_limpas[cor])
 
 
-def segmentar(imagem):
-    return criar_mascaras(converter_hsv(imagem))
+def segmentar(imagem, kernel, iteracoes):
+    mascaras = criar_mascaras(converter_hsv(imagem))
+    return mascaras, limpar_mascaras(mascaras, kernel, iteracoes)
 
 
-def processar_imagem(caminho, coordenadas, filtro):
+def processar_imagem(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
     frame = cv2.imread(str(caminho))
     if frame is None:
         return False
@@ -38,13 +40,13 @@ def processar_imagem(caminho, coordenadas, filtro):
     frame = redimensionar(frame)
     recorte, roi = selecionar_roi(frame, coordenadas)
     imagem_processada = preprocessar(recorte, filtro)
-    mascaras = segmentar(imagem_processada)
-    mostrar(frame, recorte, imagem_processada, mascaras, roi)
+    mascaras, mascaras_limpas = segmentar(imagem_processada, kernel, iteracoes)
+    mostrar(frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi)
     cv2.waitKey(0)
     return True
 
 
-def processar_video(caminho, coordenadas, filtro):
+def processar_video(caminho, coordenadas, filtro, kernel=5, iteracoes=1):
     video = cv2.VideoCapture(str(caminho))
     if not video.isOpened():
         raise ValueError("Não foi possível abrir a entrada.")
@@ -58,8 +60,12 @@ def processar_video(caminho, coordenadas, filtro):
         frame = redimensionar(frame)
         recorte, roi = selecionar_roi(frame, roi)
         imagem_processada = preprocessar(recorte, filtro)
-        mascaras = segmentar(imagem_processada)
-        mostrar(frame, recorte, imagem_processada, mascaras, roi)
+        mascaras, mascaras_limpas = segmentar(
+            imagem_processada, kernel, iteracoes
+        )
+        mostrar(
+            frame, recorte, imagem_processada, mascaras, mascaras_limpas, roi
+        )
 
         if cv2.waitKey(25) & 0xFF in (ord("q"), 27):
             break
@@ -77,14 +83,30 @@ def main():
         default="mediana",
         help="Filtro de redução de ruído (padrão: mediana).",
     )
+    parser.add_argument(
+        "--kernel",
+        type=int,
+        default=5,
+        help="Tamanho do kernel morfológico (padrão: 5).",
+    )
+    parser.add_argument(
+        "--iteracoes",
+        type=int,
+        default=1,
+        help="Iterações das operações morfológicas (padrão: 1).",
+    )
     args = parser.parse_args()
 
     if not args.entrada.is_file():
         parser.error("arquivo inexistente ou inválido")
 
     try:
-        if not processar_imagem(args.entrada, args.roi, args.filtro):
-            processar_video(args.entrada, args.roi, args.filtro)
+        if not processar_imagem(
+            args.entrada, args.roi, args.filtro, args.kernel, args.iteracoes
+        ):
+            processar_video(
+                args.entrada, args.roi, args.filtro, args.kernel, args.iteracoes
+            )
     except ValueError as erro:
         parser.error(str(erro))
     finally:

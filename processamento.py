@@ -82,3 +82,48 @@ def criar_mascaras(imagem_hsv, limites=None):
         mascaras[cor] = mascara
 
     return mascaras
+
+
+def criar_kernel(tamanho=5):
+    """Cria um elemento estruturante elíptico."""
+    if tamanho <= 0:
+        raise ValueError("O tamanho do kernel deve ser maior que zero.")
+    return cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (tamanho, tamanho))
+
+
+def erodir(mascara, kernel, iteracoes=1):
+    return cv2.erode(mascara, kernel, iterations=iteracoes)
+
+
+def dilatar(mascara, kernel, iteracoes=1):
+    return cv2.dilate(mascara, kernel, iterations=iteracoes)
+
+
+def abertura(mascara, kernel, iteracoes=1):
+    return cv2.morphologyEx(
+        mascara, cv2.MORPH_OPEN, kernel, iterations=iteracoes
+    )
+
+
+def fechamento(mascara, kernel, iteracoes=1):
+    return cv2.morphologyEx(
+        mascara, cv2.MORPH_CLOSE, kernel, iterations=iteracoes
+    )
+
+
+def limpar_mascara(mascara, tamanho_kernel=5, iteracoes=1):
+    """Remove pontos isolados e preenche pequenas falhas."""
+    if iteracoes <= 0:
+        raise ValueError("A quantidade de iterações deve ser maior que zero.")
+
+    kernel = criar_kernel(tamanho_kernel)
+    mascara = abertura(mascara, kernel, iteracoes)
+    return fechamento(mascara, kernel, iteracoes)
+
+
+def limpar_mascaras(mascaras, tamanho_kernel=5, iteracoes=1):
+    """Aplica a limpeza morfológica a todas as máscaras."""
+    return {
+        cor: limpar_mascara(mascara, tamanho_kernel, iteracoes)
+        for cor, mascara in mascaras.items()
+    }
