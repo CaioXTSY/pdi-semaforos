@@ -1,8 +1,19 @@
 """Funções de recorte e pré-processamento da região do semáforo."""
 
 import cv2
+import numpy as np
 
 TAMANHO_PADRAO = (200, 400)
+
+# Limites HSV do OpenCV: H entre 0-179; S e V entre 0-255.
+LIMITES_HSV = {
+    "vermelho": [
+        ((0, 100, 70), (10, 255, 255)),
+        ((170, 100, 70), (179, 255, 255)),
+    ],
+    "amarelo": [((15, 100, 70), (35, 255, 255))],
+    "verde": [((40, 70, 70), (90, 255, 255))],
+}
 
 
 def redimensionar(frame, largura=960):
@@ -47,3 +58,27 @@ def preprocessar(imagem, filtro="mediana"):
         return filtro_mediana(imagem)
 
     raise ValueError("Filtro deve ser 'gaussiano' ou 'mediana'.")
+
+
+def converter_hsv(imagem):
+    """Converte uma imagem BGR para o espaço de cores HSV."""
+    return cv2.cvtColor(imagem, cv2.COLOR_BGR2HSV)
+
+
+def criar_mascaras(imagem_hsv, limites=None):
+    """Cria máscaras binárias para vermelho, amarelo e verde."""
+    limites = limites or LIMITES_HSV
+    mascaras = {}
+
+    for cor, faixas in limites.items():
+        mascara = np.zeros(imagem_hsv.shape[:2], dtype=np.uint8)
+        for minimo, maximo in faixas:
+            faixa = cv2.inRange(
+                imagem_hsv,
+                np.array(minimo, dtype=np.uint8),
+                np.array(maximo, dtype=np.uint8),
+            )
+            mascara = cv2.bitwise_or(mascara, faixa)
+        mascaras[cor] = mascara
+
+    return mascaras
