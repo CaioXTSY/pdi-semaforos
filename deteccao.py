@@ -18,6 +18,12 @@ CORES_ESTADO = {
     "DESCONHECIDO": (255, 255, 255),
 }
 
+POSICOES_ESPERADAS = {
+    "vermelho": 0.20,
+    "amarelo": 0.50,
+    "verde": 0.80,
+}
+
 
 def encontrar_contornos(mascara):
     """Encontra os contornos externos de uma máscara binária."""
@@ -44,49 +50,76 @@ def filtrar_candidatos(contornos, area_minima, circularidade_minima=0.45):
     ]
 
 
+def avaliar_candidato(contorno, largura, altura, posicao_esperada):
+    """Pontua forma, preenchimento e posição de uma possível luz."""
+    area = cv2.contourArea(contorno)
+    x, y, largura_regiao, altura_regiao = cv2.boundingRect(contorno)
+    centro_x = (x + largura_regiao / 2) / largura
+    centro_y = (y + altura_regiao / 2) / altura
+
+    # A luz deve ficar no miolo horizontal da ROI, não na moldura lateral.
+    if not 0.15 <= centro_x <= 0.85:
+        return None
+
+    proporcao_area = area / (largura * altura)
+    if proporcao_area < 0.001:
+        return None
+
+    proporcao_forma = min(largura_regiao, altura_regiao) / max(
+        largura_regiao, altura_regiao
+    )
+    if proporcao_forma < 0.45:
+        return None
+
+    preenchimento = area / (largura_regiao * altura_regiao)
+    circularidade = calcular_circularidade(contorno)
+    centralidade = 1 - abs(centro_x - 0.5) / 0.35
+    coerencia_vertical = 1 - abs(centro_y - posicao_esperada) / 0.35
+    centralidade = max(0.0, min(centralidade, 1.0))
+    coerencia_vertical = max(0.0, min(coerencia_vertical, 1.0))
+
+    forma = (
+        0.30 * circularidade
+        + 0.20 * proporcao_forma
+        + 0.20 * preenchimento
+        + 0.15 * centralidade
+        + 0.15 * coerencia_vertical
+    )
+    intensidade = min(proporcao_area / 0.01, 1.0)
+    confianca = 0.75 * forma + 0.25 * intensidade
+
+    return {
+        "confianca": confianca,
+        "regiao": (x, y, largura_regiao, altura_regiao),
+    }
+
+
 def classificar_estado(
-    mascaras, proporcao_minima=0.002, circularidade_minima=0.45
+    mascaras, confianca_minima=0.50
 ):
-    """Escolhe a cor com melhor proporção de pixels na zona esperada."""
+    """Escolhe o candidato mais coerente com uma luz de semáforo."""
     deteccoes = []
 
     for cor, mascara in mascaras.items():
-        area_regiao = mascara.size / 3
-        area_minima = max(8, area_regiao * 0.0005)
-        candidatos = filtrar_candidatos(
-            encontrar_contornos(mascara), area_minima, circularidade_minima
-        )
-        if not candidatos:
-            continue
-
-        melhor = max(candidatos, key=cv2.contourArea)
-        mascara_valida = np.zeros_like(mascara)
-        cv2.drawContours(mascara_valida, candidatos, -1, 255, cv2.FILLED)
-        pixels = cv2.countNonZero(cv2.bitwise_and(mascara, mascara_valida))
-        proporcao = pixels / area_regiao
-        if proporcao < proporcao_minima:
-            continue
-
-        deteccoes.append(
-            {
-                "cor": cor,
-                "proporcao": proporcao,
-                "circularidade": calcular_circularidade(melhor),
-                "regiao": cv2.boundingRect(melhor),
-            }
-        )
+        altura, largura = mascara.shape
+        for contorno in encontrar_contornos(mascara):
+            candidato = avaliar_candidato(
+                contorno, largura, altura, POSICOES_ESPERADAS[cor]
+            )
+            if candidato is not None:
+                candidato["cor"] = cor
+                deteccoes.append(candidato)
 
     if not deteccoes:
         return {"estado": "DESCONHECIDO", "confianca": 0.0, "regiao": None}
 
-    melhor = max(deteccoes, key=lambda item: item["proporcao"])
-    total = sum(item["proporcao"] for item in deteccoes)
-    dominancia = melhor["proporcao"] / total
-    confianca = (dominancia + melhor["circularidade"]) / 2
+    melhor = max(deteccoes, key=lambda item: item["confianca"])
+    if melhor["confianca"] < confianca_minima:
+        return {"estado": "DESCONHECIDO", "confianca": 0.0, "regiao": None}
 
     return {
         "estado": ESTADOS[melhor["cor"]],
-        "confianca": round(min(confianca, 1.0), 2),
+        "confianca": round(min(melhor["confianca"], 1.0), 2),
         "regiao": melhor["regiao"],
     }
 

@@ -41,9 +41,9 @@ def aplicar_regioes_esperadas(mascaras):
     """Mantém cada cor em uma zona vertical esperada com sobreposição."""
     altura = next(iter(mascaras.values())).shape[0]
     zonas = {
-        "vermelho": (0.00, 0.55),
-        "amarelo": (0.20, 0.80),
-        "verde": (0.45, 1.00),
+        "vermelho": (0.00, 0.42),
+        "amarelo": (0.25, 0.72),
+        "verde": (0.55, 1.00),
     }
     resultado = {}
 
