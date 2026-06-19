@@ -1,8 +1,7 @@
 # Identificação de Semáforos
 
 Este projeto foi desenvolvido para a disciplina de Processamento Digital de
-Imagens. Seu objetivo é identificar a cor ativa de um semáforo em uma imagem ou
-vídeo.
+Imagens. Seu objetivo é identificar a cor ativa de um semáforo em uma imagem.
 
 O sistema pode apresentar os seguintes resultados:
 
@@ -18,8 +17,7 @@ programa melhora a imagem, separa as cores e analisa qual luz está acesa.
 
 O processo é dividido nas seguintes etapas:
 
-1. **Entrada da imagem ou vídeo:** o programa abre o arquivo informado pelo
-   usuário. Em vídeos, os quadros são lidos um de cada vez.
+1. **Entrada da imagem:** o programa abre o arquivo informado pelo usuário.
 2. **Seleção da região do semáforo:** o usuário marca com o mouse a área onde o
    semáforo está localizado, evitando elementos desnecessários da imagem.
 3. **Melhoria da imagem:** a região selecionada é ampliada e suavizada para
@@ -36,21 +34,21 @@ resultado `DESCONHECIDO`.
 
 ## Bibliotecas utilizadas
 
-- **OpenCV:** usada para abrir imagens e vídeos, selecionar a região do
+- **OpenCV:** usada para abrir imagens, selecionar a região do
   semáforo, aplicar filtros, separar as cores e encontrar as luzes.
 - **NumPy:** usada para trabalhar com os pixels, máscaras e organização das
   imagens exibidas no painel.
 - **argparse:** biblioteca do próprio Python usada para receber o caminho do
   arquivo e as opções informadas no terminal.
 - **pathlib:** biblioteca do próprio Python usada para validar e manipular os
-  caminhos das imagens e vídeos.
+  caminhos das imagens.
 
 ## Organização dos arquivos
 
 - `main.py`: integra o fluxo e apresenta o painel.
 - `processamento.py`: abre a entrada, trata a ROI e cria as máscaras.
 - `deteccao.py`: localiza candidatos e classifica o estado.
-- `avaliacao.py`: estabiliza vídeos, calcula métricas e salva resultados.
+- `avaliacao.py`: calcula métricas simples e salva resultados.
 
 Os resultados de cada execução são salvos em
 `resultados/resultados.csv`. Outro caminho pode ser informado com `--saida`.
@@ -73,12 +71,6 @@ Para processar uma imagem:
 python main.py "fotos\verde_3.png"
 ```
 
-Para processar um vídeo:
-
-```powershell
-python main.py "dados\video.mp4"
-```
-
 Para escolher o arquivo de resultados:
 
 ```powershell
@@ -86,7 +78,8 @@ python main.py "fotos\verde_3.png" --saida "resultados\verde_3.csv"
 ```
 
 Ao abrir a imagem, selecione o semáforo com o mouse e pressione `Enter` ou
-`Espaço`. Em vídeos, pressione `Q` ou `Esc` para encerrar.
+`Espaço`. Na janela de resultado, pressione `Enter`, `Espaço`, `Q` ou `Esc`
+para encerrar.
 
 ## Exemplos de resultado
 

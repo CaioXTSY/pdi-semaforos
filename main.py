@@ -1,17 +1,16 @@
 """Integra entrada, processamento, detecção, avaliação e exibição."""
 
 import sys
-from collections import deque
 from time import perf_counter
 
 import cv2
 import numpy as np
 
-from avaliacao import estabilizar_resultado, salvar_resultados
+from avaliacao import salvar_resultados
 from deteccao import classificar_estado
 from processamento import (
     ler_argumentos,
-    ler_quadros,
+    ler_imagem,
     preprocessar,
     redimensionar,
     segmentar,
@@ -86,35 +85,30 @@ def processar_quadro(frame, roi, args):
 
 def executar(args):
     roi = args.roi
-    historico = deque(maxlen=5)
     registros = []
 
     try:
-        for numero, (frame, imagem_unica) in enumerate(ler_quadros(args.entrada), 1):
-            inicio = perf_counter()
-            dados = processar_quadro(frame, roi, args)
-            frame, recorte, processada, mascaras, limpas, roi, resultado = dados
+        inicio = perf_counter()
+        frame = ler_imagem(args.entrada)
+        dados = processar_quadro(frame, roi, args)
+        frame, recorte, processada, mascaras, limpas, roi, resultado = dados
 
-            historico.append(resultado)
-            if not imagem_unica:
-                resultado = estabilizar_resultado(historico)
+        tempo_ms = (perf_counter() - inicio) * 1000
+        registros.append(
+            {
+                "imagem": args.entrada.name,
+                "estado": resultado["estado"],
+                "confianca": resultado["confianca"],
+                "tempo_ms": round(tempo_ms, 2),
+            }
+        )
+        mostrar_resultado(
+            frame, recorte, processada, mascaras, limpas, roi, resultado
+        )
 
-            tempo_ms = (perf_counter() - inicio) * 1000
-            registros.append(
-                {
-                    "quadro": numero,
-                    "estado": resultado["estado"],
-                    "confianca": resultado["confianca"],
-                    "tempo_ms": round(tempo_ms, 2),
-                }
-            )
-            mostrar_resultado(
-                frame, recorte, processada, mascaras, limpas, roi, resultado
-            )
-
-            if imagem_unica:
-                print(f"Estado do semáforo: {resultado['estado']}")
-            if cv2.waitKey(0 if imagem_unica else 25) & 0xFF in (ord("q"), 27):
+        print(f"Estado do semáforo: {resultado['estado']}")
+        while True:
+            if cv2.waitKey(0) & 0xFF in (ord("q"), 27, 13, 32):
                 break
     except ValueError as erro:
         print(f"Erro: {erro}", file=sys.stderr)

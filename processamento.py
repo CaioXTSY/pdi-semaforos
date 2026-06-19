@@ -47,25 +47,12 @@ def ler_argumentos():
     return argumentos
 
 
-def ler_quadros(caminho):
-    """Produz os quadros e informa se a entrada é uma imagem."""
+def ler_imagem(caminho):
+    """Lê uma imagem do caminho informado."""
     imagem = cv2.imread(str(caminho))
-    if imagem is not None:
-        yield imagem, True
-        return
-
-    video = cv2.VideoCapture(str(caminho))
-    if not video.isOpened():
-        raise ValueError("Não foi possível abrir a entrada.")
-
-    try:
-        while True:
-            sucesso, frame = video.read()
-            if not sucesso:
-                break
-            yield frame, False
-    finally:
-        video.release()
+    if imagem is None:
+        raise ValueError("Não foi possível abrir a imagem.")
+    return imagem
 
 
 def redimensionar(frame, largura=LARGURA_MAXIMA):
