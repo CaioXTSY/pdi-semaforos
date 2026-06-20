@@ -32,6 +32,10 @@ O processo é dividido nas seguintes etapas:
 Caso nenhuma luz seja identificada com segurança, o sistema apresenta o
 resultado `DESCONHECIDO`.
 
+## Pipeline
+
+![Pipeline do sistema de identificação de semáforos](.github/imagens/pipeline.png)
+
 ## Bibliotecas utilizadas
 
 - **OpenCV:** usada para abrir imagens, selecionar a região do
